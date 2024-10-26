@@ -37,7 +37,7 @@ type Pool struct {
 
 	mu    sync.Mutex
 	size  int
-	ids   map[int]worker //all data about the workers. use sharded map or array?
+	ids   map[int]worker
 	close chan struct{}
 }
 
@@ -45,13 +45,6 @@ type worker struct {
 	isActive   bool
 	lastUsedAt time.Time
 }
-
-//start the goroutines at runtime?
-
-//write blog on how to use go generate
-//write benchmarks => less memory. check for interface conversion speed
-//close the worker that has not been used for a long time. configure this
-//used request and response pool?
 
 func New(size int, f func(Request) Response) (*Pool, error) {
 	if size < 0 {
