@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -46,7 +47,7 @@ func TestClosePoolInvalidSize(t *testing.T) {
 
 	assert.Equal(t, 5, p.Size())
 
-	err = p.Close(7)
+	err = p.Stop(7)
 
 	assert.NotNil(t, err)
 	assert.Equal(t, "size is larger than the worker pool", err.Error())
@@ -57,18 +58,18 @@ func TestClosingAllWorkers(t *testing.T) {
 	f := Input
 	p, err := New(5, f)
 
+	p.Start()
+
 	assert.Nil(t, err)
 
 	assert.Equal(t, 5, p.Size())
 
-	err = p.Close(5)
+	err = p.Stop(5)
 
-	assert.NotNil(t, err)
-	assert.Equal(t, "cannot close all workers", err.Error())
+	assert.Nil(t, err)
 }
 
 func TestSubmit(t *testing.T) {
-	t.Skip()
 	f := Input
 
 	p, err := New(5, f)
@@ -83,6 +84,80 @@ func TestSubmit(t *testing.T) {
 	response := p.Submit(request)
 	assert.Nil(t, response.Err)
 	assert.Equal(t, 2, response.Output)
+}
+
+func TestSubmitTimeout(t *testing.T) {
+	f := Timeout
+
+	p, err := New(5, f)
+	assert.Nil(t, err)
+
+	p.Start()
+
+	request := Request{
+		Input: 1,
+	}
+
+	response := p.Submit(request)
+	assert.NotNil(t, response.Err)
+	assert.Equal(t, "context deadline exceeded", response.Err.Error())
+}
+
+func TestSubmitAndAggregate(t *testing.T) {
+	f := Input
+
+	p, err := New(5, f)
+	assert.Nil(t, err)
+
+	p.Start()
+
+	var wg sync.WaitGroup
+	aggregate := make(chan Response, 10)
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go p.SubmitAndAggregate(Request{
+			Input: i,
+		}, &wg, aggregate)
+	}
+
+	wg.Wait()
+	close(aggregate)
+
+	assert.Equal(t, 10, len(aggregate))
+
+	for response := range aggregate {
+		assert.Nil(t, response.Err)
+	}
+}
+
+func TestSubmitAndAggregateError(t *testing.T) {
+	f := Error
+
+	p, err := New(5, f)
+	assert.Nil(t, err)
+
+	p.Start()
+
+	var wg sync.WaitGroup
+	aggregate := make(chan Response, 10)
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go p.SubmitAndAggregate(Request{
+			Input: i,
+		}, &wg, aggregate)
+	}
+
+	wg.Wait()
+	close(aggregate)
+
+	assert.Equal(t, 10, len(aggregate))
+
+	for response := range aggregate {
+		assert.NotNil(t, response.Err)
+		assert.Equal(t, "invalid input", response.Err.Error())
+	}
 }
 
 func TestStartPool(t *testing.T) {

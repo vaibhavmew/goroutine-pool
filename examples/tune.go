@@ -20,4 +20,6 @@ func Tune() {
 	//safe for concurrent use with other goroutines
 	p.Tune(size)
 
+	//close the pool
+	p.Close()
 }

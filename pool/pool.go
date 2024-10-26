@@ -81,22 +81,18 @@ func (p *Pool) Start() {
 		go p.Worker()
 	}
 	p.isActive = true
-
-	//purge
-	//go p.Purge()
-
-	//get a worker id using LRU
-
+	time.Sleep(10 * time.Millisecond)
 }
 
-func (p *Pool) ClosePool() error {
-	//close all workers as well as purge goroutine
-	err := p.Close(p.Size())
+func (p *Pool) Close() error {
+
+	err := p.Stop(p.Size())
 	if err != nil {
 		return err
 	}
 
-	//close the purge goroutine
+	time.Sleep(10 * time.Millisecond)
+
 	return nil
 }
 
@@ -138,9 +134,8 @@ func (p *Pool) Size() int {
 }
 
 func (p *Pool) Worker() {
-	id := id() //workerID
+	id := id()
 	p.log.Println("worker started on goroutine no: " + strconv.Itoa(id))
-	//time.Sleep(10 * time.Millisecond)
 
 	p.add(id)
 	p.initRequestCh(id)
@@ -150,15 +145,12 @@ func (p *Pool) Worker() {
 		case <-p.close:
 			p.remove(id)
 			p.log.Println("closed worker on goroutine no: " + strconv.Itoa(id))
-			//time.Sleep(100 * time.Millisecond)
 			return
 		case k := <-p.requestCh:
 			p.active(id)
 			k.ch <- id
 			p.responseCh[id] <- p.f(k)
 			p.inactive(id)
-		default:
-			//check
 		}
 	}
 }
@@ -202,8 +194,8 @@ func (p *Pool) initRequestCh(workerID int) {
 	p.mu.Unlock()
 }
 
-// close particular number of workers
-func (p *Pool) Close(size int) error {
+// stop particular number of workers
+func (p *Pool) Stop(size int) error {
 	if size > p.size {
 		return ErrPoolSizeMismatch
 	}
@@ -294,7 +286,7 @@ func (p *Pool) Purge() {
 
 func (p *Pool) purge() {
 	size := p.percentage * p.size / 100
-	p.Close(size)
+	p.Stop(size)
 }
 
 // goroutine id
@@ -307,27 +299,4 @@ func id() int {
 		panic(err)
 	}
 	return id
-}
-
-func Input(r Request) Response {
-	return Response{
-		Input:  r.Input,
-		Output: r.Input + 1,
-		Err:    nil,
-	}
-}
-
-// request
-type Request struct {
-	ch chan int
-	//add your fields here
-	Input int
-}
-
-type Response struct {
-	Err error //do not remove this. used internally
-
-	//add your fields here
-	Output int
-	Input  int
 }

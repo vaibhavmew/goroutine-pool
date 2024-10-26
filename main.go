@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"pool/pool"
 	"sync"
-	"time"
 )
 
 func main() {
@@ -14,8 +13,6 @@ func main() {
 	}
 
 	p.Start()
-
-	time.Sleep(100 * time.Millisecond)
 
 	var wg sync.WaitGroup
 	aggregate := make(chan pool.Response, 100)
@@ -33,10 +30,13 @@ func main() {
 
 	for k := range aggregate {
 		if k.Err != nil {
-			fmt.Println("error for input", k.Input)
+			fmt.Println("error for input")
 		} else {
-			fmt.Println(k.Input, k.Output)
+			fmt.Println(k.Output)
 		}
 	}
+
+	//close pool
+	p.Close()
 
 }

@@ -14,5 +14,9 @@ func Purge() {
 
 	//closes 5 workers from the pool
 	//safe for concurrent use with other goroutines
-	p.Close(5)
+	p.Stop(5)
+
+	//close the pool
+	p.Close()
+
 }

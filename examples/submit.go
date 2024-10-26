@@ -5,6 +5,8 @@ import (
 	"pool/pool"
 )
 
+//your function should follow the format mentioned in pool.Input
+
 func Submit() {
 	p, err := pool.New(0, pool.Input)
 	if err != nil {
@@ -20,6 +22,9 @@ func Submit() {
 	if response.Err != nil {
 		fmt.Println(response.Err)
 	} else {
-		fmt.Println(response.Input, response.Output)
+		fmt.Println(response.Output)
 	}
+
+	//close the pool
+	p.Close()
 }

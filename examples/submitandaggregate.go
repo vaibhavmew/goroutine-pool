@@ -6,7 +6,6 @@ import (
 	"sync"
 )
 
-// default pool size is runtime.NumCPU()
 func SubmitAndAggregate() {
 	p, err := pool.New(0, pool.Input)
 	if err != nil {
@@ -30,9 +29,12 @@ func SubmitAndAggregate() {
 
 	for k := range aggregate {
 		if k.Err != nil {
-			fmt.Println("error for input", k.Input)
+			fmt.Println("error for input")
 		} else {
-			fmt.Println(k.Input, k.Output)
+			fmt.Println(k.Output)
 		}
 	}
+
+	//close the pool
+	p.Close()
 }
