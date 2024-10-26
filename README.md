@@ -47,3 +47,11 @@ if err != nil {
     panic(err)
 }
 ```
+
+Checking the error returned by a worker
+```go
+response := p.Submit(request)
+if response.Err != nil {
+    fmt.Println(response.Err)
+}
+```
