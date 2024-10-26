@@ -77,12 +77,12 @@ func TestSubmit(t *testing.T) {
 	p.Start()
 
 	request := Request{
-		input: 1,
+		Input: 1,
 	}
 
 	response := p.Submit(request)
-	assert.Nil(t, response.err)
-	assert.Equal(t, 2, response.output)
+	assert.Nil(t, response.Err)
+	assert.Equal(t, 2, response.Output)
 }
 
 func TestStartPool(t *testing.T) {
