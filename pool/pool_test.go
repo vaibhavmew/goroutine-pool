@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -111,17 +110,18 @@ func TestSubmitAndAggregate(t *testing.T) {
 
 	p.Start()
 
-	var wg sync.WaitGroup
-	aggregate := make(chan Response, 10)
+	size := 10
+	aggregate := make(chan Response, size)
+	waitCh := make(chan chan int, size)
 
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go p.SubmitAndAggregate(Request{
+	for i := 0; i < size; i++ {
+		p.SubmitAndAggregate(Request{
 			Input: i,
-		}, &wg, aggregate)
+		}, waitCh)
 	}
 
-	wg.Wait()
+	p.Wait(aggregate, waitCh, size)
+
 	close(aggregate)
 
 	assert.Equal(t, 10, len(aggregate))
@@ -139,17 +139,18 @@ func TestSubmitAndAggregateError(t *testing.T) {
 
 	p.Start()
 
-	var wg sync.WaitGroup
-	aggregate := make(chan Response, 10)
+	size := 10
+	aggregate := make(chan Response, size)
+	waitCh := make(chan chan int, size)
 
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go p.SubmitAndAggregate(Request{
+	for i := 0; i < size; i++ {
+		p.SubmitAndAggregate(Request{
 			Input: i,
-		}, &wg, aggregate)
+		}, waitCh)
 	}
 
-	wg.Wait()
+	p.Wait(aggregate, waitCh, size)
+
 	close(aggregate)
 
 	assert.Equal(t, 10, len(aggregate))

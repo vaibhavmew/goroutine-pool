@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"pool/pool"
-	"sync"
 )
 
 func main() {
@@ -14,18 +13,18 @@ func main() {
 
 	p.Start()
 
-	var wg sync.WaitGroup
-	aggregate := make(chan pool.Response, 100)
+	size := 100
+	aggregate := make(chan pool.Response, size)
+	waitCh := make(chan chan int, size)
 
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		r := pool.Request{
+	for i := 0; i < size; i++ {
+		p.SubmitAndAggregate(pool.Request{
 			Input: i,
-		}
-		go p.SubmitAndAggregate(r, &wg, aggregate)
+		}, waitCh)
 	}
 
-	wg.Wait()
+	p.Wait(aggregate, waitCh, size)
+
 	close(aggregate)
 
 	for k := range aggregate {

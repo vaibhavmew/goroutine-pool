@@ -58,7 +58,7 @@ func New(size int, f func(Request) Response) (*Pool, error) {
 	p := Pool{
 		size:        size,
 		f:           f,
-		requestCh:   make(chan Request, 50),
+		requestCh:   make(chan Request, 100),
 		responseCh:  make(map[int]chan Response, 1),
 		log:         log.Default(),
 		ids:         make(map[int]worker),
@@ -139,10 +139,10 @@ func (p *Pool) Worker() {
 			p.remove(id)
 			p.log.Println("closed worker on goroutine no: " + strconv.Itoa(id))
 			return
-		case k := <-p.requestCh:
+		case request := <-p.requestCh:
 			p.active(id)
-			k.ch <- id
-			p.responseCh[id] <- p.f(k)
+			request.ch <- id
+			p.responseCh[id] <- p.f(request)
 			p.inactive(id)
 		}
 	}
@@ -167,7 +167,6 @@ func (p *Pool) active(workerID int) {
 		lastUsedAt: time.Now(),
 	}
 	p.mu.Unlock()
-
 }
 
 func (p *Pool) inactive(workerID int) {
@@ -178,7 +177,6 @@ func (p *Pool) inactive(workerID int) {
 		lastUsedAt: lastUsedAt,
 	}
 	p.mu.Unlock()
-
 }
 
 func (p *Pool) initRequestCh(workerID int) {
@@ -211,10 +209,8 @@ func (p *Pool) Stop(size int) error {
 }
 
 func (p *Pool) Submit(r Request) Response {
-
 	wait := make(chan int)
 	r.ch = wait
-
 	p.requestCh <- r
 
 	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
@@ -230,25 +226,20 @@ func (p *Pool) Submit(r Request) Response {
 	}
 }
 
-func (p *Pool) SubmitAndAggregate(r Request, wg *sync.WaitGroup, ch chan Response) {
+func (p *Pool) Wait(ch chan Response, waitCh chan chan int, size int) {
+	for i := 0; i < size; i++ {
+		wait := <-waitCh
+		response := <-p.responseCh[<-wait]
+		ch <- response
+	}
+}
 
+// does not support timeout right now
+func (p *Pool) SubmitAndAggregate(r Request, waitCh chan chan int) {
 	wait := make(chan int)
 	r.ch = wait
+	waitCh <- wait
 	p.requestCh <- r
-
-	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
-	defer cancel()
-
-	select {
-	case response := <-p.responseCh[<-wait]:
-		ch <- response
-	case <-ctx.Done():
-		ch <- Response{
-			Err: ctx.Err(),
-		}
-	}
-
-	wg.Done()
 }
 
 func (p *Pool) Active() int {
@@ -262,10 +253,6 @@ func (p *Pool) Active() int {
 	p.mu.Unlock()
 	return count
 }
-
-//policy for purging. maximum how many workers can be closed
-//if less no of workers exist and there is too much load. increase the worker
-//do not overpurge
 
 // remove workers that have been inactive for a long time
 func (p *Pool) Purge() {
